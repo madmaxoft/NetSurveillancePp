@@ -24,6 +24,15 @@ std::shared_ptr<Recorder> Recorder::create()
 
 
 
+Recorder::~Recorder()
+{
+	disconnect();
+}
+
+
+
+
+
 Recorder::Recorder():
 	mMainConnection(Connection::create())
 {
@@ -38,18 +47,18 @@ void Recorder::connectAndLogin(
 	uint16_t aPort,
 	const std::string & aUserName,
 	const std::string & aPassword,
-	std::function<void(const asio::error_code &)> aOnFinish
+	std::function<void(const std::error_code &)> aOnFinish
 )
 {
 	mMainConnection->connect(aHostName, aPort,
-		[self = shared_from_this(), aUserName, aPassword, aOnFinish](const asio::error_code & aError)
+		[self = shared_from_this(), aUserName, aPassword, aOnFinish](const std::error_code & aError)
 		{
 			if (aError)
 			{
 				return aOnFinish(aError);
 			}
 			self->mMainConnection->login(aUserName, aPassword,
-				[self, aOnFinish](const asio::error_code & aError, const nlohmann::json & aResponse)
+				[self, aOnFinish](const std::error_code & aError, const nlohmann::json & aResponse)
 				{
 					if (aError)
 					{
@@ -66,6 +75,19 @@ void Recorder::connectAndLogin(
 			);
 		}
 	);
+}
+
+
+
+
+
+void Recorder::disconnect()
+{
+	auto conn = mMainConnection;
+	if (conn)
+	{
+		conn->disconnect();
+	}
 }
 
 

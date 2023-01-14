@@ -31,6 +31,6 @@ set (HDRS
 # Add the static library:
 add_library(NetSurveillancePp-static STATIC ${SRCS} ${HDRS})
 target_link_libraries(NetSurveillancePp-static asio::standalone nlohmann_json::nlohmann_json)
-target_compile_features(NetSurveillancePp-static PRIVATE cxx_std_11)
+target_compile_features(NetSurveillancePp-static PRIVATE cxx_std_20)
 message("Current source dir: ${CMAKE_CURRENT_SOURCE_DIR}")
 target_include_directories(NetSurveillancePp-static PUBLIC "${CMAKE_CURRENT_SOURCE_DIR}" "blabla")

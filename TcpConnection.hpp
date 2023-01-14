@@ -35,12 +35,16 @@ public:
 	void connect(
 		const std::string & aHostName,
 		uint16_t aPort,
-		std::function<void(const asio::error_code &)> aOnFinish
+		std::function<void(const std::error_code &)> aOnFinish
 	);
 
 	/** Asynchronously sends the specified data.
 	Returns immediately, there is no notification about having sent the data. */
 	void send(const std::vector<char> & aData);
+
+	/** Disconnects the socket.
+	Ignores any errors, returns immediately. */
+	void disconnect();
 
 
 protected:
@@ -83,10 +87,10 @@ protected:
 	void queueRead();
 
 	/** Called by ASIO when mOutgoingData has been written to mSocket. */
-	void onWritten(const asio::error_code & aError);
+	void onWritten(const std::error_code & aError);
 
 	/** Called by ASIO when data has been read into mIncomingData. */
-	void onRead(const asio::error_code & aError, std::size_t aNumBytes);
+	void onRead(const std::error_code & aError, std::size_t aNumBytes);
 
 	/** Takes next item in mOutgoingQueue, if available, and starts writing it.
 	Moves the item from mOutgoingQueue into mOutgoingData / mIncomingQueue.

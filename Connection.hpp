@@ -39,12 +39,20 @@ class Connection:
 public:
 
 	/** The callback for incoming data. */
-	using Callback = std::function<void(const asio::error_code &, const nlohmann::json &)>;
+	using Callback = std::function<void(const std::error_code &, const nlohmann::json &)>;
 
 	enum class CommandType: uint16_t
 	{
-		Login_Req = 1000,
-		Login_Resp = 1000,
+		// Note: The following values are off-by-one from the official docs, but are what was seen on wire on a real device
+		Login_Req        = 1000,
+		Login_Resp       = 1001,
+		Logout_Req       = 1002,
+		Logout_Resp      = 1003,
+		ForceLogout_Req  = 1004,
+		ForceLogout_Resp = 1005,
+		KeepAlive_Req    = 1006,
+		KeepAlive_Resp   = 1007,
+		// (end of off-by-one values)
 	};
 
 
@@ -58,10 +66,11 @@ public:
 	void connect(
 		const std::string & aHostName,
 		uint16_t aPort,
-		std::function<void(const asio::error_code &)> aOnFinish
+		std::function<void(const std::error_code &)> aOnFinish
 	);
 
 	/** Asynchronously logs in using the specified credentials.
+	When successful, schedules sending a keepalive packet according to the device's requirements.
 	Returns immediately, calls the finish handler async afterwards from an ASIO worker thread. */
 	void login(
 		const std::string & aUsername,
@@ -83,10 +92,30 @@ protected:
 	/** The sequence counter for outgoing packets. */
 	std::atomic<uint32_t> mSequence;
 
+	/** The AliveInterval received from the device in the Login_Resp packet.
+	Specifies the interval, in seconds, between the KeepAlive packets required by the device. */
+	int mAliveInterval;
+
+	/** The ASIO timer used for seinding KeepAlive requests. */
+	asio::steady_timer mKeepAliveTimer;
+
 
 	/** Protected constructor, we want the clients to use std::shared_ptr for owning this object.
 	Instead of a constructor, the clients should call create(). */
 	Connection();
+
+	/** Returns a correctly typed shared_ptr to self.
+	Equivalent to shared_from_this(), but typed correctly for this class. */
+	std::shared_ptr<Connection> selfPtr() { return std::static_pointer_cast<Connection>(shared_from_this()); }
+
+	/** Reads the login response, sets up the session ID and keepalives, calls the finish handler.
+	If an error is reported, only farwards the error to the finish handler.
+	Called by ASIO when a login response has been received. */
+	void onLogin(const std::error_code & aError, const nlohmann::json & aResponse, Callback aOnFinish);
+
+	/** Queues a KeepAlive request and re-schedules the timer again.
+	Called by ASIO periodically (through mKeepAliveTimer). */
+	void onKeepAliveTimer(const std::error_code & aError);
 
 	/** Puts the specified command to the send queue to be sent async.
 	Once the reply for the command is received, calls the callback from an ASIO worker thread. */

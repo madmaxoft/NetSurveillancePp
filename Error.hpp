@@ -15,6 +15,10 @@ namespace NetSurveillancePp
 
 enum class Error
 {
+	// Synthetic error codes:
+	ResponseMissingExpectedField = 1,  // The response was missing an expected field, required for further communication
+
+	// Error codes reported by the device ("Ret" code in the json):
 	UnknownError = 101,
 	Unsupported = 102,
 	IllegalRequest = 103,

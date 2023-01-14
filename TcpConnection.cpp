@@ -34,11 +34,11 @@ TcpConnection::TcpConnection():
 void TcpConnection::connect(
 	const std::string & aHostName,
 	uint16_t aPort,
-	std::function<void(const asio::error_code &)> aOnFinish
+	std::function<void(const std::error_code &)> aOnFinish
 )
 {
 	mResolver.async_resolve(aHostName, std::to_string(aPort),
-		[self = shared_from_this(), aOnFinish](const asio::error_code & aError, asio::ip::tcp::resolver::results_type aResults)
+		[self = shared_from_this(), aOnFinish](const std::error_code & aError, asio::ip::tcp::resolver::results_type aResults)
 		{
 			if (aError)
 			{
@@ -46,7 +46,7 @@ void TcpConnection::connect(
 				return;
 			}
 			asio::async_connect(self->mSocket, aResults, 
-				[self, aOnFinish](const asio::error_code & aError, asio::ip::tcp::endpoint const & aEndpoint)
+				[self, aOnFinish](const std::error_code & aError, asio::ip::tcp::endpoint const & aEndpoint)
 				{
 					if (aError)
 					{
@@ -83,11 +83,22 @@ void TcpConnection::send(const std::vector<char> & aData)
 
 
 
+void TcpConnection::disconnect()
+{
+	std::error_code err;
+	mSocket.shutdown(asio::ip::tcp::socket::shutdown_both, err);
+	mSocket.close(err);
+}
+
+
+
+
+
 void TcpConnection::queueRead()
 {
 	mSocket.async_read_some(
 		asio::buffer(mIncomingData.data() + mIncomingDataSize, mIncomingData.size() - mIncomingDataSize),
-		[self = shared_from_this()](const asio::error_code & aError, std::size_t aNumBytes)
+		[self = shared_from_this()](const std::error_code & aError, std::size_t aNumBytes)
 		{
 			self->onRead(aError, aNumBytes);
 		}
@@ -98,7 +109,7 @@ void TcpConnection::queueRead()
 
 
 
-void TcpConnection::onWritten(const asio::error_code & aError)
+void TcpConnection::onWritten(const std::error_code & aError)
 {
 	if (aError)
 	{
@@ -113,7 +124,7 @@ void TcpConnection::onWritten(const asio::error_code & aError)
 
 
 
-void TcpConnection::onRead(const asio::error_code & aError, std::size_t aNumBytes)
+void TcpConnection::onRead(const std::error_code & aError, std::size_t aNumBytes)
 {
 	if (aError)
 	{

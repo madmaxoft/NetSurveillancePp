@@ -1,6 +1,10 @@
 #include "Connection.hpp"
+
+#include <format>
+
 #include "Root.hpp"
 #include "SofiaHash.hpp"
+#include "Error.hpp"
 
 
 
@@ -73,7 +77,9 @@ static uint32_t parseUint32(const char * aInput)
 
 Connection::Connection():
 	mSessionID(0),
-	mSequence(0)
+	mSequence(0),
+	mAliveInterval(0),
+	mKeepAliveTimer(Root::instance().ioContext())
 {
 }
 
@@ -93,7 +99,7 @@ std::shared_ptr<Connection> Connection::create()
 void Connection::connect(
 	const std::string & aHostName,
 	uint16_t aPort,
-	std::function<void(const asio::error_code &)> aOnFinish
+	std::function<void(const std::error_code &)> aOnFinish
 )
 {
 	Super::connect(aHostName, aPort, aOnFinish);
@@ -117,7 +123,84 @@ void Connection::login(
 		{"UserName", aUsername},
 		{"PassWord", sofiaHash(aPassword)},
 	};
-	queueCommand(CommandType::Login_Req, CommandType::Login_Resp, js.dump(), aOnFinish);
+	queueCommand(CommandType::Login_Req, CommandType::Login_Resp, js.dump(),
+		[self = selfPtr(), aOnFinish](const std::error_code & aError, const nlohmann::json & aResponse)
+		{
+			self->onLogin(aError, aResponse, aOnFinish);
+		}
+	);
+}
+
+
+
+
+
+void Connection::onLogin(const std::error_code & aError, const nlohmann::json & aResponse, Callback aOnFinish)
+{
+	if (aError)
+	{
+		return aOnFinish(aError, aResponse);
+	}
+
+	// Login was successful
+	// Set the session ID from the response:
+	auto itr = aResponse.find("SessionID");
+	if (itr == aResponse.end())
+	{
+		return aOnFinish(Error::ResponseMissingExpectedField, aResponse);
+	}
+	mSessionID = std::stoi(std::string(*itr), nullptr, 0);
+
+	// Schedule a keepalive packet according to the response:
+	itr = aResponse.find("AliveInterval");
+	if (itr == aResponse.end())
+	{
+		return aOnFinish(Error::ResponseMissingExpectedField, aResponse);
+	}
+	mAliveInterval = *itr;
+	if (mAliveInterval > 0)
+	{
+		mKeepAliveTimer.expires_from_now(std::chrono::seconds(mAliveInterval / 2));
+		mKeepAliveTimer.async_wait(
+			[self = selfPtr()](const std::error_code & aError)
+			{
+				self->onKeepAliveTimer(aError);
+			}
+		);
+	}
+
+	// Report the success to the callback:
+	return aOnFinish(aError, aResponse);
+}
+
+
+
+
+
+void Connection::onKeepAliveTimer(const std::error_code & aError)
+{
+	if (aError)
+	{
+		// Silently ignore all scheduling errors
+		return;
+	}
+	nlohmann::json js =
+	{
+		{"Name", "KeepAlive"},
+		{"SessionID", std::format("{:#08x}", mSessionID.load())},
+	};
+	queueCommand(CommandType::KeepAlive_Req, CommandType::KeepAlive_Resp, js.dump(),
+		[](const std::error_code & aError, const nlohmann::json & aResponse)
+		{
+		}
+	);
+	mKeepAliveTimer.expires_from_now(std::chrono::seconds(mAliveInterval / 2));
+	mKeepAliveTimer.async_wait(
+		[self = selfPtr()](const std::error_code & aError)
+		{
+			self->onKeepAliveTimer(aError);
+		}
+	);
 }
 
 
