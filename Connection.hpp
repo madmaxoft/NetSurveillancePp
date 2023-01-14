@@ -53,6 +53,121 @@ public:
 		KeepAlive_Req    = 1006,
 		KeepAlive_Resp   = 1007,
 		// (end of off-by-one values)
+
+		SysInfo_Req  = 1020,
+		SysInfo_Resp = 1021,
+
+		// Config:
+		ConfigSet_Req                = 1040,
+		ConfigSet_Resp               = 1041,
+		ConfigGet_Req                = 1042,
+		ConfigGet_Resp               = 1043,
+		DefaultConfigGet_Req         = 1044,
+		DefaultConfigGet_Resp        = 1045,
+		ConfigChannelTileSet_Req     = 1046,
+		ConfigChannelTileSet_Resp    = 1047,
+		ConfigChannelTileGet_Req     = 1048,
+		ConfigChannelTileGet_Resp    = 1049,
+		ConfigChannelTileDotSet_Req  = 1050,
+		ConfigChannelTileDotSet_Resp = 1051,
+
+		SystemDebug_Req  = 1052,
+		SystemDebug_Resp = 1053,
+
+		AbilityGet_Req  = 1360,
+		AbilityGet_Resp = 1361,
+
+		// PTZ control:
+		Ptz_Req = 1400,
+		Ptz_Resp = 1401,
+
+		// Monitor (current video playback):
+		Monitor_Req       = 1410,
+		Monitor_Resp      = 1411,
+		Monitor_Data      = 1412,
+		MonitorClaim_Req  = 1413,
+		MonitorClaim_Resp = 1414,
+
+		// Playback:
+		Play_Req = 1420,
+		Play_Resp = 1421,
+		Play_Data = 1422,
+		Play_Eof = 1423,
+		PlayClaim_Req = 1424,
+		PlayClaim_Resp = 1425,
+		DownloadData = 1426,
+
+		// Intercom:
+		Talk_Req = 1430,
+		Talk_Resp = 1431,
+		TalkToNvr_Data = 1432,
+		TalkFromNvr_Data = 1433,
+		TalkClaim_Req = 1434,
+		TalkClaim_Resp = 1435,
+
+		// File search:
+		FileSearch_Req         = 1440,
+		FileSearch_Resp        = 1441,
+		LogSearch_Req          = 1442,
+		LogSearch_Resp         = 1443,
+		FileSearchByTime_Req   = 1444,
+		FileSearchByTyime_Resp = 1445,
+
+		// System management:
+		SysMgr_Req     = 1450,
+		SysMgr_Resp    = 1451,
+		TimeQuery_Req  = 1452,
+		TimeQuery_Resp = 1453,
+
+		// Disk management:
+		DiskMgr_Req  = 1460,
+		DiskMgr_Resp = 1461,
+
+		// User management:
+		FullAuthorityListGet_Req  = 1470,
+		FullAuthorityListGet_Resp = 1471,
+		UsersGet_Req              = 1472,
+		UsersGet_Resp             = 1473,
+		GroupsGet_Req             = 1474,
+		GroupsGet_Resp            = 1475,
+		AddGroup_Req              = 1476,
+		AddGroup_Resp             = 1477,
+		ModifyGroup_Req           = 1478,
+		ModifyGroup_Resp          = 1479,
+		DeleteGroup_Req           = 1480,
+		DeleteGroup_Resp          = 1481,
+		AddUser_Req               = 1482,
+		AddUser_Resp              = 1483,
+		ModifyUser_Req            = 1484,
+		ModifyUser_Resp           = 1485,
+		DeleteUser_Req            = 1486,
+		DeleteUser_Resp           = 1487,
+		ModifyPassword_Req        = 1488,
+		ModifyPassword_Resp       = 1489,
+
+		// Alarm reporting:
+		Guard_Req          = 1500,
+		Guard_Resp         = 1501,
+		Unguard_Req        = 1502,
+		Unguard_Resp       = 1503,
+		Alarm_Req          = 1504,
+		Alarm_Resp         = 1505,
+		NetAlarm_Req       = 1506,
+		NetAlarm_Resp      = 1507,
+		AlarmCenterMsg_Req = 1508,
+
+		// SysUpgrade:
+		SysUpgrade_Req      = 1520,
+		SysUpgrade_Resp     = 1521,
+		SysUpgradeData_Req  = 1522,
+		SysUpgradeData_Resp = 1523,
+		SysUpgradeProgress  = 1524,
+		SysUpgradeInfo_Req  = 1525,
+		SysUpgradeInfo_Resp = 1526,
+
+		// Time sync:
+		SyncTime_Req  = 1590,
+		SyncTime_Resp = 1591,
 	};
 
 
