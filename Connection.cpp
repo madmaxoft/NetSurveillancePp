@@ -1,6 +1,6 @@
 #include "Connection.hpp"
 
-#include <format>
+#include <fmt/format.h>
 
 #include "Root.hpp"
 #include "SofiaHash.hpp"
@@ -251,7 +251,7 @@ void Connection::onKeepAliveTimer(const std::error_code & aError)
 
 std::string Connection::sessionIDHexStr() const
 {
-	return std::format("{:#08x}", mSessionID.load());
+	return fmt::format("{:#08x}", mSessionID.load());
 }
 
 
