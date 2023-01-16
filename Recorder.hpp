@@ -45,6 +45,12 @@ public:
 	Ignores any errors, returns immediately. */
 	void disconnect();
 
+	/** Asynchronously queries the channel names.
+	Most devices require logging in first, before enumerating the channels (use connectAndLogin()).
+	If successful, calls the callback with the channel names.
+	On error, calls the callback with an error code and empty channel names. */
+	void getChannelNames(Connection::ChannelNamesCallback aOnFinish);
+
 
 private:
 

@@ -94,4 +94,18 @@ void Recorder::disconnect()
 
 
 
+void Recorder::getChannelNames(Connection::ChannelNamesCallback aOnFinish)
+{
+	auto conn = mMainConnection;
+	if (conn == nullptr)
+	{
+		aOnFinish(make_error_code(Error::NoConnection), {});
+	}
+	conn->getChannelNames(aOnFinish);
+}
+
+
+
+
+
 }  // namespace NetSurveillancePp

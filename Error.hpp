@@ -16,9 +16,11 @@ namespace NetSurveillancePp
 enum class Error
 {
 	// Synthetic error codes:
-	ResponseMissingExpectedField = 1,  // The response was missing an expected field, required for further communication
+	NoConnection = 1,  // The socket to the device is not connected (probably missing a connectAndLogin() call)
+	ResponseMissingExpectedField = 2,  // The response was missing an expected field, required for further communication
 
 	// Error codes reported by the device ("Ret" code in the json):
+	Success = 100,  // Not an error, this is the expected Success state
 	UnknownError = 101,
 	Unsupported = 102,
 	IllegalRequest = 103,
@@ -41,6 +43,9 @@ enum class Error
 	DigitalChannelNotConnected = 121,
 	SuccessNeedRestart = 150,
 	UserNotLoggedIn2 = 202,
+
+	ConfigurationDoesNotExist = 607,  // Typically when trying to send Protocol::ConfigGet_Req with an unknown "Name" field
+	ConfigurationParsingError = 608,
 };
 
 

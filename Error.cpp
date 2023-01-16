@@ -1,5 +1,7 @@
 #include "Error.hpp"
 
+#include <cassert>
+
 
 
 
@@ -24,6 +26,16 @@ std::string ErrorCategoryImpl::message(int aErrorValue) const
 {
 	switch (static_cast<Error>(aErrorValue))
 	{
+		// Synthetic error codes:
+		case Error::NoConnection: return "No connection to the device";
+		case Error::ResponseMissingExpectedField: return "The response is missing a required field";
+
+		// Error codes reported by the device:
+		case Error::Success:
+		{
+			assert(!"This is success, it shouldn't trigger error-handling.");
+			return "Success";
+		}
 		case Error::UnknownError: return "Unknown error";
 		case Error::Unsupported: return "Unsupported";
 		case Error::IllegalRequest: return "Illegal request";
@@ -46,6 +58,8 @@ std::string ErrorCategoryImpl::message(int aErrorValue) const
 		case Error::DigitalChannelNotConnected: return "Digital channel not connected";
 		case Error::SuccessNeedRestart: return "Success, the device needs to be restarted";
 		case Error::UserNotLoggedIn2: return "User not logged in (202)";
+		case Error::ConfigurationDoesNotExist: return "The configuration doesn't exist";
+		case Error::ConfigurationParsingError: return "Configuration parsing error";
 		default: return "Unknown error";
 	}
 	return {};

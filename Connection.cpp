@@ -112,10 +112,9 @@ void Connection::connect(
 void Connection::login(
 	const std::string & aUsername,
 	const std::string & aPassword,
-	Callback aOnFinish
+	JsonCallback aOnFinish
 )
 {
-	std::string payload;
 	nlohmann::json js =
 	{
 		{"LoginType", "DVRIP-Web"},
@@ -126,7 +125,7 @@ void Connection::login(
 	queueCommand(CommandType::Login_Req, CommandType::Login_Resp, js.dump(),
 		[self = selfPtr(), aOnFinish](const std::error_code & aError, const nlohmann::json & aResponse)
 		{
-			self->onLogin(aError, aResponse, aOnFinish);
+			self->onLoginResp(aError, aResponse, aOnFinish);
 		}
 	);
 }
@@ -135,7 +134,26 @@ void Connection::login(
 
 
 
-void Connection::onLogin(const std::error_code & aError, const nlohmann::json & aResponse, Callback aOnFinish)
+void Connection::getChannelNames(ChannelNamesCallback aOnFinish)
+{
+	nlohmann::json js =
+	{
+		{"SessionID", sessionIDHexStr()},
+		{"Name",      "ChannelTitle"},
+	};
+	queueCommand(CommandType::ConfigChannelTitleGet_Req, CommandType::ConfigChannelTitleGet_Resp, js.dump(),
+		[self = selfPtr(), aOnFinish](const std::error_code & aError, const nlohmann::json & aResponse)
+		{
+			self->onGetChannelNamesResp(aError, aResponse, aOnFinish);
+		}
+	);
+}
+
+
+
+
+
+void Connection::onLoginResp(const std::error_code & aError, const nlohmann::json & aResponse, JsonCallback aOnFinish)
 {
 	if (aError)
 	{
@@ -177,6 +195,31 @@ void Connection::onLogin(const std::error_code & aError, const nlohmann::json & 
 
 
 
+void Connection::onGetChannelNamesResp(const std::error_code & aError, const nlohmann::json & aResponse, ChannelNamesCallback aOnFinish)
+{
+	if (aError)
+	{
+		return aOnFinish(aError, {});
+	}
+
+	// Parse the channel names from the Json:
+	auto itr = aResponse.find("ChannelTitle");
+	if (itr == aResponse.end())
+	{
+		return aOnFinish(make_error_code(Error::ResponseMissingExpectedField), {});
+	}
+	std::vector<std::string> channelTitles;
+	for (const auto & cht: *itr)
+	{
+		channelTitles.push_back(cht);
+	}
+	return aOnFinish({}, channelTitles);
+}
+
+
+
+
+
 void Connection::onKeepAliveTimer(const std::error_code & aError)
 {
 	if (aError)
@@ -187,7 +230,7 @@ void Connection::onKeepAliveTimer(const std::error_code & aError)
 	nlohmann::json js =
 	{
 		{"Name", "KeepAlive"},
-		{"SessionID", std::format("{:#08x}", mSessionID.load())},
+		{"SessionID", sessionIDHexStr()},
 	};
 	queueCommand(CommandType::KeepAlive_Req, CommandType::KeepAlive_Resp, js.dump(),
 		[](const std::error_code & aError, const nlohmann::json & aResponse)
@@ -206,12 +249,20 @@ void Connection::onKeepAliveTimer(const std::error_code & aError)
 
 
 
+std::string Connection::sessionIDHexStr() const
+{
+	return std::format("{:#08x}", mSessionID.load());
+}
+
+
+
+
 
 void Connection::queueCommand(
 	CommandType aCommandType,
 	CommandType aExpectedResponseType,
 	const std::string & aPayload,
-	Callback aOnFinish
+	JsonCallback aOnFinish
 )
 {
 	// Put the expected response type and handler to the incoming queue:
@@ -282,8 +333,8 @@ void Connection::parseIncomingPackets()
 			mSessionID = itr->get<uint32_t>();
 		}
 
-		// Send the packet to the corresponding callback that is waiting in the queue:
-		Callback callback = nullptr;
+		// Find the corresponding callback that is waiting in the queue:
+		JsonCallback callback = nullptr;
 		{
 			LockGuard lg(mMtxTransfer);
 			for (auto itr = mIncomingQueue.begin(), end = mIncomingQueue.end(); itr != end; ++itr)
@@ -296,9 +347,26 @@ void Connection::parseIncomingPackets()
 				}
 			}
 		}
+
+		// Parse the return code from the packet, call the callback:
 		if (callback != nullptr)
 		{
-			callback({}, j);
+			itr = j.find("Ret");
+			if ((itr == j.end()) || (!itr->is_number()))
+			{
+				callback(make_error_code(Error::ResponseMissingExpectedField), j);
+			}
+			else
+			{
+				if (*itr == Error::Success)
+				{
+					callback({}, j);
+				}
+				else
+				{
+					callback(make_error_code(static_cast<Error>(*itr)), j);
+				}
+			}
 		}
 
 		// Continue parsing:

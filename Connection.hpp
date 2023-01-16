@@ -38,8 +38,11 @@ class Connection:
 
 public:
 
-	/** The callback for incoming data. */
-	using Callback = std::function<void(const std::error_code &, const nlohmann::json &)>;
+	/** The generic callback for incoming data, parsed into a JSON structure. */
+	using JsonCallback = std::function<void(const std::error_code &, const nlohmann::json &)>;
+
+	/** The callback for enumerating channel names. */
+	using ChannelNamesCallback = std::function<void(const std::error_code &, const std::vector<std::string> &)>;
 
 	enum class CommandType: uint16_t
 	{
@@ -64,10 +67,10 @@ public:
 		ConfigGet_Resp               = 1043,
 		DefaultConfigGet_Req         = 1044,
 		DefaultConfigGet_Resp        = 1045,
-		ConfigChannelTileSet_Req     = 1046,
-		ConfigChannelTileSet_Resp    = 1047,
-		ConfigChannelTileGet_Req     = 1048,
-		ConfigChannelTileGet_Resp    = 1049,
+		ConfigChannelTitleSet_Req    = 1046,
+		ConfigChannelTitleSet_Resp   = 1047,
+		ConfigChannelTitleGet_Req    = 1048,
+		ConfigChannelTitleGet_Resp   = 1049,
 		ConfigChannelTileDotSet_Req  = 1050,
 		ConfigChannelTileDotSet_Resp = 1051,
 
@@ -190,8 +193,14 @@ public:
 	void login(
 		const std::string & aUsername,
 		const std::string & aPassword,
-		Callback aOnFinish
+		JsonCallback aOnFinish
 	);
+
+	/** Asynchronously queries the channel names.
+	Most devices require logging in first, before enumerating the channels (use connectAndLogin()).
+	If successful, calls the callback with the channel names.
+	On error, calls the callback with an error code and empty channel names. */
+	void getChannelNames(ChannelNamesCallback aOnFinish);
 
 
 protected:
@@ -202,7 +211,7 @@ protected:
 
 	/** The queue of expected response types and their completion handlers waiting for received data.
 	Protected against multithreaded access by mMtxTransfer. */
-	std::vector<std::pair<CommandType, Callback>> mIncomingQueue;
+	std::vector<std::pair<CommandType, JsonCallback>> mIncomingQueue;
 
 	/** The sequence counter for outgoing packets. */
 	std::atomic<uint32_t> mSequence;
@@ -226,11 +235,16 @@ protected:
 	/** Reads the login response, sets up the session ID and keepalives, calls the finish handler.
 	If an error is reported, only farwards the error to the finish handler.
 	Called by ASIO when a login response has been received. */
-	void onLogin(const std::error_code & aError, const nlohmann::json & aResponse, Callback aOnFinish);
+	void onLoginResp(const std::error_code & aError, const nlohmann::json & aResponse, JsonCallback aOnFinish);
+
+	void onGetChannelNamesResp(const std::error_code & aError, const nlohmann::json & aResponse, ChannelNamesCallback anFinish);
 
 	/** Queues a KeepAlive request and re-schedules the timer again.
 	Called by ASIO periodically (through mKeepAliveTimer). */
 	void onKeepAliveTimer(const std::error_code & aError);
+
+	/** Returns the session ID formatted as a hex number, with "0x" prefix (as is often used in the protocol). */
+	std::string sessionIDHexStr() const;
 
 	/** Puts the specified command to the send queue to be sent async.
 	Once the reply for the command is received, calls the callback from an ASIO worker thread. */
@@ -238,7 +252,7 @@ protected:
 		CommandType aCommandType,
 		CommandType aExpectedResponseType,
 		const std::string & aPayload,
-		Callback aOnFinish
+		JsonCallback aOnFinish
 	);
 
 	/** Serializes the specified command into the on-wire format. */
