@@ -58,6 +58,9 @@ std::string ErrorCategoryImpl::message(int aErrorValue) const
 		case Error::DigitalChannelNotConnected: return "Digital channel not connected";
 		case Error::SuccessNeedRestart: return "Success, the device needs to be restarted";
 		case Error::UserNotLoggedIn2: return "User not logged in (202)";
+		case Error::IncorrectPassword: return "Incorrect password";
+		case Error::IllegalUser: return "Illegal user";
+		case Error::UserLocked: return "User locked";
 		case Error::ConfigurationDoesNotExist: return "The configuration doesn't exist";
 		case Error::ConfigurationParsingError: return "Configuration parsing error";
 		default: return "Unknown error";

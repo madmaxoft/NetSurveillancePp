@@ -43,6 +43,9 @@ enum class Error
 	DigitalChannelNotConnected = 121,
 	SuccessNeedRestart = 150,
 	UserNotLoggedIn2 = 202,
+	IncorrectPassword = 203,
+	IllegalUser = 204,
+	UserLocked = 205,
 
 	ConfigurationDoesNotExist = 607,  // Typically when trying to send Protocol::ConfigGet_Req with an unknown "Name" field
 	ConfigurationParsingError = 608,
