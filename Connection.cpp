@@ -153,6 +153,28 @@ void Connection::getChannelNames(ChannelNamesCallback aOnFinish)
 
 
 
+void Connection::monitorAlarms(std::shared_ptr<Connection::AlarmCallbacks> aOnAlarm)
+{
+	std::swap(aOnAlarm, mOnAlarm);
+	if (aOnAlarm != nullptr)
+	{
+		// The device was already monitoring for alarms, no need to ask it to start
+		return;
+	}
+
+	// The alarms were not monitored from the device before, start monitoring:
+	nlohmann::json js =
+	{
+		{"Name", ""},
+		{"SessionID", sessionIDHexStr()},
+	};
+	queueCommand(CommandType::Guard_Req, CommandType::Guard_Resp, js.dump(), {});
+}
+
+
+
+
+
 void Connection::capturePicture(int aChannel, PictureCallback aOnFinish)
 {
 	nlohmann::json js =

@@ -48,6 +48,14 @@ public:
 	/** The callback for enumerating channel names. */
 	using ChannelNamesCallback = std::function<void(const std::error_code &, const std::vector<std::string> &)>;
 
+	/** The callback for listening to device's alarms. */
+	class AlarmCallbacks
+	{
+		/** Called when an alarm trigger starts. aEventType is the source of the alarm, typically "VideoMotion". */
+		std::function<void(int aChannel, const std::string & aEventType)> onAlarmStart;
+		std::function<void(int aChannel, const std::string & aEventType)> onAlarmEnd;
+	};
+
 	/** The callback for capturing a picture.
 	The first param is the error code; if successful, the next two params contain the raw picture data. */
 	using PictureCallback = std::function<void(const std::error_code &, const char * aData, size_t aSize)>;
@@ -216,6 +224,11 @@ public:
 	On error, calls the callback with an error code and empty channel names. */
 	void getChannelNames(ChannelNamesCallback aOnFinish);
 
+	/** Installs an async alarm monitor.
+	The callback is called whenever the device reports an alarm start or stop event.
+	Only one monitor can be installed at a time, setting another one overwrites the previous one. */
+	void monitorAlarms(std::shared_ptr<Connection::AlarmCallbacks> aOnAlarm);
+
 	/** Asynchronously captures a picture from the specified channel. */
 	void capturePicture(int aChannel, PictureCallback aOnFinish);
 
@@ -239,6 +252,10 @@ protected:
 
 	/** The ASIO timer used for seinding KeepAlive requests. */
 	asio::steady_timer mKeepAliveTimer;
+
+	/** The callbacks to call upon receiving an alarm.
+	May be nullptr (-> don't call anything, default). */
+	std::shared_ptr<AlarmCallbacks> mOnAlarm;
 
 
 	/** Protected constructor, we want the clients to use std::shared_ptr for owning this object.

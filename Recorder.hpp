@@ -51,6 +51,11 @@ public:
 	On error, calls the callback with an error code and empty channel names. */
 	void getChannelNames(Connection::ChannelNamesCallback aOnFinish);
 
+	/** Installs an async alarm monitor.
+	The callback is called whenever the device reports an alarm start or stop event.
+	Only one monitor can be installed at a time, setting another one overwrites the previous one. */
+	void monitorAlarms(std::shared_ptr<Connection::AlarmCallbacks> aOnAlarm);
+
 	/** Asynchronously captures a picture from the specified channel. */
 	void capturePicture(int aChannel, Connection::PictureCallback aOnFinish);
 

@@ -108,6 +108,22 @@ void Recorder::getChannelNames(Connection::ChannelNamesCallback aOnFinish)
 
 
 
+void Recorder::monitorAlarms(std::shared_ptr<Connection::AlarmCallbacks> aOnAlarm)
+{
+	auto conn = mMainConnection;
+	if (conn == nullptr)
+	{
+		// The main connection is not connected, silently ignore
+		return;
+	}
+	conn->monitorAlarms(std::move(aOnAlarm));
+}
+
+
+
+
+
+
 void Recorder::capturePicture(int aChannel, Connection::PictureCallback aOnFinish)
 {
 	auto conn = mMainConnection;
