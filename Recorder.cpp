@@ -108,4 +108,19 @@ void Recorder::getChannelNames(Connection::ChannelNamesCallback aOnFinish)
 
 
 
+void Recorder::capturePicture(int aChannel, Connection::PictureCallback aOnFinish)
+{
+	auto conn = mMainConnection;
+	if (conn == nullptr)
+	{
+		// The main connection is not connected, silently ignore
+		return;
+	}
+	conn->capturePicture(aChannel, std::move(aOnFinish));
+}
+
+
+
+
+
 }  // namespace NetSurveillancePp

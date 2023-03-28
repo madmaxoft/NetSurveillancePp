@@ -38,11 +38,19 @@ class Connection:
 
 public:
 
+	/** The generic callback used for raw incoming data.
+	If the error code specifies an error, the callback must NOT touch aData nor aSize (they may be invalid). */
+	using RawDataCallback = std::function<void(const std::error_code & aErr, const char * aData, size_t aSize)>;
+
 	/** The generic callback for incoming data, parsed into a JSON structure. */
 	using JsonCallback = std::function<void(const std::error_code &, const nlohmann::json &)>;
 
 	/** The callback for enumerating channel names. */
 	using ChannelNamesCallback = std::function<void(const std::error_code &, const std::vector<std::string> &)>;
+
+	/** The callback for capturing a picture.
+	The first param is the error code; if successful, the next two params contain the raw picture data. */
+	using PictureCallback = std::function<void(const std::error_code &, const char * aData, size_t aSize)>;
 
 	enum class CommandType: uint16_t
 	{
@@ -168,6 +176,12 @@ public:
 		SysUpgradeInfo_Req  = 1525,
 		SysUpgradeInfo_Resp = 1526,
 
+		// Capture control:
+		NetSnap_Req    = 1560,
+		NetSnap_Resp   = 1561,
+		SetIFrame_Req  = 1562,
+		SetIFrame_Resp = 1563,
+
 		// Time sync:
 		SyncTime_Req  = 1590,
 		SyncTime_Resp = 1591,
@@ -202,6 +216,9 @@ public:
 	On error, calls the callback with an error code and empty channel names. */
 	void getChannelNames(ChannelNamesCallback aOnFinish);
 
+	/** Asynchronously captures a picture from the specified channel. */
+	void capturePicture(int aChannel, PictureCallback aOnFinish);
+
 
 protected:
 
@@ -211,7 +228,7 @@ protected:
 
 	/** The queue of expected response types and their completion handlers waiting for received data.
 	Protected against multithreaded access by mMtxTransfer. */
-	std::vector<std::pair<CommandType, JsonCallback>> mIncomingQueue;
+	std::vector<std::pair<CommandType, RawDataCallback>> mIncomingQueue;
 
 	/** The sequence counter for outgoing packets. */
 	std::atomic<uint32_t> mSequence;
@@ -247,7 +264,19 @@ protected:
 	std::string sessionIDHexStr() const;
 
 	/** Puts the specified command to the send queue to be sent async.
-	Once the reply for the command is received, calls the callback from an ASIO worker thread. */
+	Once the reply for the command is received, calls the callback from an ASIO worker thread.
+	The received data is handed to the callback as-is, with no parsing whatsoever. */
+	void queueCommandRaw(
+		CommandType aCommandType,
+		CommandType aExpectedResponseType,
+		const std::string & aPayload,
+		RawDataCallback aOnFinish
+	);
+
+	/** Puts the specified command to the send queue to be sent async.
+	Once the reply for the command is received, calls the callback from an ASIO worker thread.
+	The received data is first parsed as JSON, then handed to the callback.
+	If parsing the data fails, the connection gets disconnected. */
 	void queueCommand(
 		CommandType aCommandType,
 		CommandType aExpectedResponseType,

@@ -71,7 +71,7 @@ protected:
 
 	/** The data incoming from mSocket (ASIO buffer).
 	mIncomingDataSize specifies how many bytes from this are valid. */
-	std::array<char, 64 * 1024> mIncomingData;
+	std::array<char, 128 * 1024> mIncomingData;
 
 	/** The number of bytes in mIncomingData that are valid. */
 	std::size_t mIncomingDataSize;

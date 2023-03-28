@@ -153,6 +153,50 @@ void Connection::getChannelNames(ChannelNamesCallback aOnFinish)
 
 
 
+void Connection::capturePicture(int aChannel, PictureCallback aOnFinish)
+{
+	nlohmann::json js =
+	{
+		{"Name", "OPSNAP"},
+		{"OPSNAP",
+			{
+				{ "Channel", aChannel },
+			},
+		},
+	};
+	queueCommandRaw(CommandType::NetSnap_Req, CommandType::NetSnap_Resp, js.dump(),
+		[aOnFinish](const std::error_code & aError, const char * aData, size_t aSize)
+		{
+			if (aError)
+			{
+				return aOnFinish(aError, aData, aSize);
+			}
+
+			// Some firmwares return JSON error, others return raw binary data. Try to parse to see if there's an error:
+			if (aSize < 500)
+			{
+				auto j = nlohmann::json::parse(aData, aData + aSize, nullptr, false);
+				if (!j.is_discarded())
+				{
+					auto itr = j.find("Ret");
+					if ((itr != j.end()) && (itr->is_number()))
+					{
+						// An error was found, report it:
+						return aOnFinish(make_error_code(static_cast<Error>(*itr)), nullptr, 0);
+					}
+				}
+			}
+
+			// Probably a binary blob representing the picture, call the callback:
+			aOnFinish(aError, aData, aSize);
+		}
+	);
+}
+
+
+
+
+
 void Connection::onLoginResp(const std::error_code & aError, const nlohmann::json & aResponse, JsonCallback aOnFinish)
 {
 	if (aError)
@@ -258,11 +302,11 @@ std::string Connection::sessionIDHexStr() const
 
 
 
-void Connection::queueCommand(
+void Connection::queueCommandRaw(
 	CommandType aCommandType,
 	CommandType aExpectedResponseType,
 	const std::string & aPayload,
-	JsonCallback aOnFinish
+	RawDataCallback aOnFinish
 )
 {
 	// Put the expected response type and handler to the incoming queue:
@@ -274,6 +318,60 @@ void Connection::queueCommand(
 	// Send the command:
 	auto rawCmd = serializeCommand(aCommandType, aPayload);
 	send(rawCmd);
+}
+
+
+
+
+
+void Connection::queueCommand(
+	CommandType aCommandType,
+	CommandType aExpectedResponseType,
+	const std::string & aPayload,
+	JsonCallback aOnFinish
+)
+{
+	return queueCommandRaw(aCommandType, aExpectedResponseType, aPayload,
+		[self = selfPtr(), aOnFinish](const std::error_code & aErr, const char * aData, size_t aSize)
+		{
+			if (aErr)
+			{
+				return aOnFinish(aErr, {});
+			}
+
+			// Parse the JSON from the response:
+			auto j = nlohmann::json::parse(aData, aData + aSize, nullptr, false);
+			if (j.is_discarded())
+			{
+				return self->disconnected();
+			}
+
+			// Remember the session ID:
+			auto itr = j.find("SessionID");
+			if ((itr != j.end()) && (itr->is_number()))
+			{
+				self->mSessionID = itr->get<uint32_t>();
+			}
+
+			// Call the callback, with error based on the "Ret" field:
+			itr = j.find("Ret");
+			if ((itr == j.end()) || (!itr->is_number()))
+			{
+				return aOnFinish(make_error_code(Error::ResponseMissingExpectedField), j);
+			}
+			else
+			{
+				if (*itr == Error::Success)
+				{
+					return aOnFinish({}, j);
+				}
+				else
+				{
+					return aOnFinish(make_error_code(static_cast<Error>(*itr)), j);
+				}
+			}
+		}
+	);
 }
 
 
@@ -320,21 +418,9 @@ void Connection::parseIncomingPackets()
 			break;
 		}
 
-		// Parse the header and the json payload:
-		auto messageType = parseUint16(mIncomingData.data() + start + 14);
-		auto j = nlohmann::json::parse(mIncomingData.data() + start + 20, mIncomingData.data() + start + 20 + payloadLength, nullptr, false);
-		if (j.is_discarded())
-		{
-			return disconnected();
-		}
-		auto itr = j.find("SessionID");
-		if ((itr != j.end()) && (itr->is_number()))
-		{
-			mSessionID = itr->get<uint32_t>();
-		}
-
 		// Find the corresponding callback that is waiting in the queue:
-		JsonCallback callback = nullptr;
+		auto messageType = parseUint16(mIncomingData.data() + start + 14);
+		RawDataCallback callback = nullptr;
 		{
 			LockGuard lg(mMtxTransfer);
 			for (auto itr = mIncomingQueue.begin(), end = mIncomingQueue.end(); itr != end; ++itr)
@@ -351,22 +437,7 @@ void Connection::parseIncomingPackets()
 		// Parse the return code from the packet, call the callback:
 		if (callback != nullptr)
 		{
-			itr = j.find("Ret");
-			if ((itr == j.end()) || (!itr->is_number()))
-			{
-				callback(make_error_code(Error::ResponseMissingExpectedField), j);
-			}
-			else
-			{
-				if (*itr == Error::Success)
-				{
-					callback({}, j);
-				}
-				else
-				{
-					callback(make_error_code(static_cast<Error>(*itr)), j);
-				}
-			}
+			callback({}, mIncomingData.data() + start + 20, payloadLength);
 		}
 
 		// Continue parsing:
@@ -395,10 +466,9 @@ void Connection::disconnected()
 	}
 
 	// Notify all of the handlers that there was a disconnect:
-	nlohmann::json empty;
 	for (const auto & item: incomingQueue)
 	{
-		std::get<1>(item)(asio::error::eof, empty);
+		std::get<1>(item)(asio::error::eof, nullptr, 0);
 	}
 }
 

@@ -51,6 +51,9 @@ public:
 	On error, calls the callback with an error code and empty channel names. */
 	void getChannelNames(Connection::ChannelNamesCallback aOnFinish);
 
+	/** Asynchronously captures a picture from the specified channel. */
+	void capturePicture(int aChannel, Connection::PictureCallback aOnFinish);
+
 
 private:
 
