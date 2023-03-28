@@ -108,6 +108,22 @@ void Recorder::getChannelNames(Connection::ChannelNamesCallback aOnFinish)
 
 
 
+void Recorder::monitorAlarms(Connection::AlarmCallback aOnAlarm)
+{
+	auto conn = mMainConnection;
+	if (conn == nullptr)
+	{
+		aOnAlarm(make_error_code(Error::NoConnection), -1, false, {}, {});
+		return;
+	}
+	conn->monitorAlarms(aOnAlarm);
+}
+
+
+
+
+
+
 void Recorder::capturePicture(int aChannel, Connection::PictureCallback aOnFinish)
 {
 	auto conn = mMainConnection;

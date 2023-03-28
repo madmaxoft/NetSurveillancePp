@@ -153,6 +153,37 @@ void Connection::getChannelNames(ChannelNamesCallback aOnFinish)
 
 
 
+void Connection::monitorAlarms(Connection::AlarmCallback aOnAlarm)
+{
+	std::swap(aOnAlarm, mOnAlarm);
+	if (aOnAlarm != nullptr)
+	{
+		// The device was already monitoring for alarms, no need to ask it to start
+		return;
+	}
+
+	// The alarms were not monitored from the device before, start monitoring:
+	nlohmann::json js =
+	{
+		{"Name", ""},
+		{"SessionID", sessionIDHexStr()},
+	};
+	queueCommand(CommandType::Guard_Req, CommandType::Guard_Resp, js.dump(),
+		[aOnAlarm](const std::error_code & aError, const nlohmann::json & aResponse)
+		{
+			// If there was an error subscribing to notifications, notify the callback:
+			if (aError)
+			{
+				return aOnAlarm(aError, -1, false, {}, {});
+			}
+		}
+	);
+}
+
+
+
+
+
 void Connection::capturePicture(int aChannel, PictureCallback aOnFinish)
 {
 	nlohmann::json js =
@@ -401,6 +432,56 @@ std::vector<char> Connection::serializeCommand(CommandType aCommandType, const s
 
 
 
+void Connection::notifyAlarm(const char * aData, size_t aSize)
+{
+	// Typical alarm data:
+	// { "AlarmInfo" : { "Channel" : 0, "Event" : "VideoMotion", "StartTime" : "2023-03-02 23:54:59", "Status" : "Stop" }, "Name" : "AlarmInfo", "SessionID" : "0x13" }
+	auto onAlarm = mOnAlarm;
+	if (!onAlarm)
+	{
+		return;
+	}
+
+	// Parse the JSON from the response:
+	auto j = nlohmann::json::parse(aData, aData + aSize, nullptr, false);
+	if (j.is_discarded())
+	{
+		return;
+	}
+
+	// Remember the session ID:
+	auto itr = j.find("SessionID");
+	if ((itr != j.end()) && (itr->is_number()))
+	{
+		mSessionID = itr->get<uint32_t>();
+	}
+
+	// Check that all the required fields are present:
+	itr = j.find("AlarmInfo");
+	if ((itr == j.end()) || (!itr->is_object()))
+	{
+		return onAlarm(make_error_code(Error::ResponseMissingExpectedField), -1, false, {}, j);
+	}
+	const auto & ai = *itr;
+	auto itrCh = ai.find("Channel");
+	auto itrEvt = ai.find("Event");
+	auto itrS = ai.find("Status");
+	if (
+		(itrCh == ai.end())  || !itrCh->is_number() ||
+		(itrEvt == ai.end()) || !itrEvt->is_string() ||
+		(itrS == ai.end())   || !itrS->is_string()
+	)
+	{
+		return onAlarm(make_error_code(Error::ResponseMissingExpectedField), -1, false, {}, j);
+	}
+
+	return onAlarm({}, *itrCh, *itrS == "Start", *itrEvt, j);
+}
+
+
+
+
+
 
 void Connection::parseIncomingPackets()
 {
@@ -420,24 +501,30 @@ void Connection::parseIncomingPackets()
 
 		// Find the corresponding callback that is waiting in the queue:
 		auto messageType = parseUint16(mIncomingData.data() + start + 14);
-		RawDataCallback callback = nullptr;
+		if (messageType == static_cast<uint16_t>(CommandType::Alarm_Req))
 		{
-			LockGuard lg(mMtxTransfer);
-			for (auto itr = mIncomingQueue.begin(), end = mIncomingQueue.end(); itr != end; ++itr)
+			// Special handling for Alarm packets, they have no callback in mIncomingQueue
+			notifyAlarm(mIncomingData.data() + start + 20, payloadLength);
+		}
+		else
+		{
+			RawDataCallback callback = nullptr;
 			{
-				if (static_cast<uint16_t>(itr->first) == messageType)
+				LockGuard lg(mMtxTransfer);
+				for (auto itr = mIncomingQueue.begin(), end = mIncomingQueue.end(); itr != end; ++itr)
 				{
-					callback = itr->second;
-					mIncomingQueue.erase(itr);
-					break;
+					if (static_cast<uint16_t>(itr->first) == messageType)
+					{
+						callback = itr->second;
+						mIncomingQueue.erase(itr);
+						break;
+					}
 				}
 			}
-		}
-
-		// Parse the return code from the packet, call the callback:
-		if (callback != nullptr)
-		{
-			callback({}, mIncomingData.data() + start + 20, payloadLength);
+			if (callback != nullptr)
+			{
+				callback({}, mIncomingData.data() + start + 20, payloadLength);
+			}
 		}
 
 		// Continue parsing:
