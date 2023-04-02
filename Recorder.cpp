@@ -113,7 +113,7 @@ void Recorder::capturePicture(int aChannel, Connection::PictureCallback aOnFinis
 	auto conn = mMainConnection;
 	if (conn == nullptr)
 	{
-		// The main connection is not connected, silently ignore
+		aOnFinish(make_error_code(Error::NoConnection), nullptr, 0);
 		return;
 	}
 	conn->capturePicture(aChannel, std::move(aOnFinish));
