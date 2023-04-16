@@ -76,6 +76,8 @@ local gMsgTypes =
 	[1502] = "UNGUARD_REQ",
 	[1503] = "UNGUARD_RSP",
 
+	[1560] = "NETSNAP_REQ",
+	[1561] = "NETSNAP_RESP",
 	[1562] = "SET_IFRAME_REQ",
 	[1563] = "SET_IFRAME_RSP",
 
