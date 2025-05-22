@@ -108,7 +108,7 @@ void Recorder::getChannelNames(Connection::ChannelNamesCallback aOnFinish)
 
 
 
-void Recorder::getSysInfo(Connection::SysInfoCallback aOnFinish, const std::string & aInfoName)
+void Recorder::getSysInfo(Connection::NamedJsonCallback aOnFinish, const std::string & aInfoName)
 {
 	auto conn = mMainConnection;
 	if (conn == nullptr)
@@ -122,7 +122,21 @@ void Recorder::getSysInfo(Connection::SysInfoCallback aOnFinish, const std::stri
 
 
 
-void Recorder::getConfig(Connection::ConfigCallback aOnFinish, const std::string & aConfigName)
+void Recorder::getAbility(Connection::NamedJsonCallback aOnFinish, const std::string & aAbilityName)
+{
+	auto conn = mMainConnection;
+	if (conn == nullptr)
+	{
+		aOnFinish(make_error_code(Error::NoConnection), {}, {});
+	}
+	conn->getAbility(aOnFinish, aAbilityName);
+}
+
+
+
+
+
+void Recorder::getConfig(Connection::NamedJsonCallback aOnFinish, const std::string & aConfigName)
 {
 	auto conn = mMainConnection;
 	if (conn == nullptr)

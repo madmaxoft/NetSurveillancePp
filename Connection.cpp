@@ -153,7 +153,7 @@ void Connection::getChannelNames(ChannelNamesCallback aOnFinish)
 
 
 
-void Connection::getSysInfo(SysInfoCallback aOnFinish, const std::string & aInfoName)
+void Connection::getSysInfo(NamedJsonCallback aOnFinish, const std::string & aInfoName)
 {
 	nlohmann::json js =
 	{
@@ -172,7 +172,26 @@ void Connection::getSysInfo(SysInfoCallback aOnFinish, const std::string & aInfo
 
 
 
-void Connection::getConfig(ConfigCallback aOnFinish, const std::string & aConfigName)
+void Connection::getAbility(NamedJsonCallback aOnFinish, const std::string & aAbilityName)
+{
+	nlohmann::json js =
+	{
+		{"SessionID", sessionIDHexStr()},
+		{"Name",      aAbilityName},
+	};
+	queueCommand(CommandType::AbilityGet_Req, CommandType::AbilityGet_Resp, js.dump(),
+		[aOnFinish, aAbilityName](const std::error_code & aError, const nlohmann::json & aResponse)
+		{
+			aOnFinish(aError, aAbilityName, aResponse);
+		}
+	);
+}
+
+
+
+
+
+void Connection::getConfig(NamedJsonCallback aOnFinish, const std::string & aConfigName)
 {
 	nlohmann::json js =
 	{

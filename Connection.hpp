@@ -48,13 +48,9 @@ public:
 	/** The callback for enumerating channel names. */
 	using ChannelNamesCallback = std::function<void(const std::error_code &, const std::vector<std::string> &)>;
 
-	/** The callback for incoming SysInfo responses.
-	Gets passed the error code, the SysInfo name and the SysInfo data. */
-	using SysInfoCallback = std::function<void(const std::error_code &, const std::string &, const nlohmann::json &)>;
-
-	/** The callback for incoming configuration responses.
-	Gets passed the error code, the config name and the config data. */
-	using ConfigCallback = std::function<void(const std::error_code &, const std::string &, const nlohmann::json &)>;
+	/** The callback for incoming JSON responses that were initiated using a single string name (SysInfo, Config, Ability)
+	Gets passed the error code, the requested name and the JSON data received from the device. */
+	using NamedJsonCallback = std::function<void(const std::error_code &, const std::string &, const nlohmann::json &)>;
 
 	/** The callback for listening to device's alarms.
 	Called when an alarm trigger starts or ends (or there's an error).
@@ -240,12 +236,17 @@ public:
 	/** Asynchronously queries the specified SysInfo from the device.
 	If successful, calls the callback with the SysInfo name and data.
 	On error, calls the callback with an error code and the response received from the device. */
-	void getSysInfo(SysInfoCallback aOnFinish, const std::string & aInfoName);
+	void getSysInfo(NamedJsonCallback aOnFinish, const std::string & aInfoName);
+
+	/** Asynchronously queries the specified Ability from the device.
+	If successful, calls the callback with the Ability name and data.
+	On error, calls the callback with an error code and the response received from the device. */
+	void getAbility(NamedJsonCallback aOnFinish, const std::string & aAbilityName);
 
 	/** Asynchronously queries the specified device config.
 	If successful, calls the callback with the config name and data.
 	On error, calls the callback with an error code and empty config. */
-	void getConfig(ConfigCallback aOnFinish, const std::string & aConfigName);
+	void getConfig(NamedJsonCallback aOnFinish, const std::string & aConfigName);
 
 	/** Installs an async alarm monitor.
 	The callback is called whenever the device reports an alarm start or stop event.
