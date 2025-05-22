@@ -153,6 +153,44 @@ void Connection::getChannelNames(ChannelNamesCallback aOnFinish)
 
 
 
+void Connection::getSysInfo(SysInfoCallback aOnFinish, const std::string & aInfoName)
+{
+	nlohmann::json js =
+	{
+		{"SessionID", sessionIDHexStr()},
+		{"Name",      aInfoName},
+	};
+	queueCommand(CommandType::SysInfo_Req, CommandType::SysInfo_Resp, js.dump(),
+		[aOnFinish, aInfoName](const std::error_code & aError, const nlohmann::json & aResponse)
+		{
+			aOnFinish(aError, aInfoName, aResponse);
+		}
+	);
+}
+
+
+
+
+
+void Connection::getConfig(ConfigCallback aOnFinish, const std::string & aConfigName)
+{
+	nlohmann::json js =
+	{
+		{"SessionID", sessionIDHexStr()},
+		{"Name",      aConfigName},
+	};
+	queueCommand(CommandType::ConfigGet_Req, CommandType::ConfigGet_Resp, js.dump(),
+		[aOnFinish, aConfigName](const std::error_code & aError, const nlohmann::json & aResponse)
+		{
+			aOnFinish(aError, aConfigName, aResponse);
+		}
+	);
+}
+
+
+
+
+
 void Connection::monitorAlarms(Connection::AlarmCallback aOnAlarm)
 {
 	std::swap(aOnAlarm, mOnAlarm);

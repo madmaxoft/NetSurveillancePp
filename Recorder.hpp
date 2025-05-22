@@ -51,6 +51,16 @@ public:
 	On error, calls the callback with an error code and empty channel names. */
 	void getChannelNames(Connection::ChannelNamesCallback aOnFinish);
 
+	/** Asynchronously queries the specified SysInfo from the device.
+	If successful, calls the callback with the SysInfo name and data.
+	On error, calls the callback with an error code and the response received from the device. */
+	void getSysInfo(Connection::SysInfoCallback aOnFinish, const std::string & aInfoName);
+
+	/** Asynchronously queries the specified device config.
+	If successful, calls the callback with the config name and data.
+	On error, calls the callback with an error code and the response returned from the device. */
+	void getConfig(Connection::ConfigCallback aOnFinish, const std::string & aConfigName);
+
 	/** Installs an async alarm monitor.
 	The callback is called whenever the device reports an alarm start or stop event.
 	Only one monitor can be installed at a time, setting another one overwrites the previous one. */

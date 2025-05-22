@@ -108,6 +108,34 @@ void Recorder::getChannelNames(Connection::ChannelNamesCallback aOnFinish)
 
 
 
+void Recorder::getSysInfo(Connection::SysInfoCallback aOnFinish, const std::string & aInfoName)
+{
+	auto conn = mMainConnection;
+	if (conn == nullptr)
+	{
+		aOnFinish(make_error_code(Error::NoConnection), {}, {});
+	}
+	conn->getSysInfo(aOnFinish, aInfoName);
+}
+
+
+
+
+
+void Recorder::getConfig(Connection::ConfigCallback aOnFinish, const std::string & aConfigName)
+{
+	auto conn = mMainConnection;
+	if (conn == nullptr)
+	{
+		aOnFinish(make_error_code(Error::NoConnection), {}, {});
+	}
+	conn->getConfig(aOnFinish, aConfigName);
+}
+
+
+
+
+
 void Recorder::monitorAlarms(Connection::AlarmCallback aOnAlarm)
 {
 	auto conn = mMainConnection;

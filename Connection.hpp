@@ -48,6 +48,14 @@ public:
 	/** The callback for enumerating channel names. */
 	using ChannelNamesCallback = std::function<void(const std::error_code &, const std::vector<std::string> &)>;
 
+	/** The callback for incoming SysInfo responses.
+	Gets passed the error code, the SysInfo name and the SysInfo data. */
+	using SysInfoCallback = std::function<void(const std::error_code &, const std::string &, const nlohmann::json &)>;
+
+	/** The callback for incoming configuration responses.
+	Gets passed the error code, the config name and the config data. */
+	using ConfigCallback = std::function<void(const std::error_code &, const std::string &, const nlohmann::json &)>;
+
 	/** The callback for listening to device's alarms.
 	Called when an alarm trigger starts or ends (or there's an error).
 	If aError doesn't indicate success, all the other parameters are undefined.
@@ -229,10 +237,20 @@ public:
 	On error, calls the callback with an error code and empty channel names. */
 	void getChannelNames(ChannelNamesCallback aOnFinish);
 
+	/** Asynchronously queries the specified SysInfo from the device.
+	If successful, calls the callback with the SysInfo name and data.
+	On error, calls the callback with an error code and the response received from the device. */
+	void getSysInfo(SysInfoCallback aOnFinish, const std::string & aInfoName);
+
+	/** Asynchronously queries the specified device config.
+	If successful, calls the callback with the config name and data.
+	On error, calls the callback with an error code and empty config. */
+	void getConfig(ConfigCallback aOnFinish, const std::string & aConfigName);
+
 	/** Installs an async alarm monitor.
 	The callback is called whenever the device reports an alarm start or stop event.
 	Only one monitor can be installed at a time, setting another one overwrites the previous one. */
-	void monitorAlarms(Connection::AlarmCallback aOnAlarm);
+	void monitorAlarms(AlarmCallback aOnAlarm);
 
 	/** Asynchronously captures a picture from the specified channel. */
 	void capturePicture(int aChannel, PictureCallback aOnFinish);
@@ -276,7 +294,7 @@ protected:
 	Called by ASIO when a login response has been received. */
 	void onLoginResp(const std::error_code & aError, const nlohmann::json & aResponse, JsonCallback aOnFinish);
 
-	void onGetChannelNamesResp(const std::error_code & aError, const nlohmann::json & aResponse, ChannelNamesCallback anFinish);
+	void onGetChannelNamesResp(const std::error_code & aError, const nlohmann::json & aResponse, ChannelNamesCallback aOnFinish);
 
 	/** Queues a KeepAlive request and re-schedules the timer again.
 	Called by ASIO periodically (through mKeepAliveTimer). */
