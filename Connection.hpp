@@ -134,12 +134,12 @@ public:
 		TalkClaim_Resp = 1435,
 
 		// File search:
-		FileSearch_Req         = 1440,
-		FileSearch_Resp        = 1441,
-		LogSearch_Req          = 1442,
-		LogSearch_Resp         = 1443,
-		FileSearchByTime_Req   = 1444,
-		FileSearchByTyime_Resp = 1445,
+		FileSearch_Req        = 1440,
+		FileSearch_Resp       = 1441,
+		LogSearch_Req         = 1442,
+		LogSearch_Resp        = 1443,
+		FileSearchByTime_Req  = 1444,
+		FileSearchByTime_Resp = 1445,
 
 		// System management:
 		SysMgr_Req     = 1450,
@@ -210,7 +210,7 @@ public:
 	create() instead of a constructor. */
 	static std::shared_ptr<Connection> create();
 
-	/** Asynchronously connects to the specified host + port. 
+	/** Asynchronously connects to the specified host + port.
 	Returns immediately, calls the finish handler async afterwards from an ASIO worker thread. */
 	void connect(
 		const std::string & aHostName,
