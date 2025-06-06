@@ -72,7 +72,7 @@ public:
 	void monitorAlarms(Connection::AlarmCallback aOnAlarm);
 
 	/** Asynchronously captures a picture from the specified channel. */
-	void capturePicture(int aChannel, Connection::PictureCallback aOnFinish);
+	void capturePicture(Connection::PictureCallback aOnFinish, int aChannel);
 
 
 private:

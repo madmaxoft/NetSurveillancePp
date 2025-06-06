@@ -254,7 +254,7 @@ public:
 	void monitorAlarms(AlarmCallback aOnAlarm);
 
 	/** Asynchronously captures a picture from the specified channel. */
-	void capturePicture(int aChannel, PictureCallback aOnFinish);
+	void capturePicture(PictureCallback aOnFinish, int aChannel);
 
 
 protected:

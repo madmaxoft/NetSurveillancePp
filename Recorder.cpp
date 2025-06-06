@@ -166,7 +166,7 @@ void Recorder::monitorAlarms(Connection::AlarmCallback aOnAlarm)
 
 
 
-void Recorder::capturePicture(int aChannel, Connection::PictureCallback aOnFinish)
+void Recorder::capturePicture(Connection::PictureCallback aOnFinish, int aChannel)
 {
 	auto conn = mMainConnection;
 	if (conn == nullptr)
@@ -174,7 +174,7 @@ void Recorder::capturePicture(int aChannel, Connection::PictureCallback aOnFinis
 		aOnFinish(make_error_code(Error::NoConnection), nullptr, 0);
 		return;
 	}
-	conn->capturePicture(aChannel, std::move(aOnFinish));
+	conn->capturePicture(std::move(aOnFinish), aChannel);
 }
 
 

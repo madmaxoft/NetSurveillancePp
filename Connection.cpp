@@ -241,7 +241,7 @@ void Connection::monitorAlarms(Connection::AlarmCallback aOnAlarm)
 
 
 
-void Connection::capturePicture(int aChannel, PictureCallback aOnFinish)
+void Connection::capturePicture(PictureCallback aOnFinish, int aChannel)
 {
 	nlohmann::json js =
 	{
