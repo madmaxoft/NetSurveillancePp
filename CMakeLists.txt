@@ -7,6 +7,7 @@ project(NetSurveillancePp LANGUAGES CXX)
 
 
 set(SRCS
+	CapturedStreamParser.cpp
 	Connection.cpp
 	Error.cpp
 	Recorder.cpp
@@ -16,6 +17,8 @@ set(SRCS
 )
 
 set (HDRS
+	ByteStream.hpp
+	CapturedStreamParser.hpp
 	Connection.hpp
 	Error.hpp
 	Recorder.hpp

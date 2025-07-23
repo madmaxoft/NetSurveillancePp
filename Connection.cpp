@@ -2,6 +2,7 @@
 
 #include <fmt/format.h>
 
+#include "ByteStream.hpp"
 #include "Root.hpp"
 #include "SofiaHash.hpp"
 #include "Error.hpp"
@@ -25,52 +26,6 @@ using LockGuard = std::lock_guard<std::recursive_mutex>;
 
 ////////////////////////////////////////////////////////////////////////////////
 // Globals:
-
-/** Adds 2 bytes into the output, containing the specified 16-bit value (Little-endian). */
-static void writeUint16(std::vector<char> & aOutput, uint16_t aValue)
-{
-	aOutput.push_back(static_cast<char>(aValue        & 0xff));
-	aOutput.push_back(static_cast<char>((aValue >> 8) & 0xff));
-}
-
-
-
-
-
-/** Adds 4 bytes into the output, containing the specified 32-bit value (Little-endian). */
-static void writeUint32(std::vector<char> & aOutput, uint32_t aValue)
-{
-	aOutput.push_back(static_cast<char>(aValue         & 0xff));
-	aOutput.push_back(static_cast<char>((aValue >> 8)  & 0xff));
-	aOutput.push_back(static_cast<char>((aValue >> 16) & 0xff));
-	aOutput.push_back(static_cast<char>((aValue >> 24) & 0xff));
-}
-
-
-
-
-
-/** Parses 2 bytes from the input as a 16-bit value. */
-static uint16_t parseUint16(const char * aInput)
-{
-	auto input = reinterpret_cast<const uint8_t *>(aInput);
-	return input[0] | (input[1] << 8);
-}
-
-
-
-
-
-/** Parses 4 bytes from the input as a 32-bit value. */
-static uint32_t parseUint32(const char * aInput)
-{
-	auto input = reinterpret_cast<const uint8_t *>(aInput);
-	return input[0] | (input[1] << 8) | (input[2] << 16) | (input[3] << 24);
-}
-
-
-
-
 
 ////////////////////////////////////////////////////////////////////////////////
 // Connection:
@@ -475,12 +430,12 @@ std::vector<char> Connection::serializeCommand(CommandType aCommandType, const s
 	res.push_back(Protocol::VERSION);
 	res.push_back(Protocol::RESERVED1);
 	res.push_back(Protocol::RESERVED2);
-	writeUint32(res, mSessionID);
-	writeUint32(res, seq);
+	ByteStream::writeUint32(res, mSessionID);
+	ByteStream::writeUint32(res, seq);
 	res.push_back(Protocol::TOTALPKT);
 	res.push_back(Protocol::CURRPKT);
-	writeUint16(res, static_cast<uint16_t>(aCommandType));
-	writeUint32(res, static_cast<uint32_t>(aPayload.size()));
+	ByteStream::writeUint16(res, static_cast<uint16_t>(aCommandType));
+	ByteStream::writeUint32(res, static_cast<uint32_t>(aPayload.size()));
 	std::copy(aPayload.begin(), aPayload.end(), std::back_inserter(res));
 	return res;
 }
@@ -550,14 +505,14 @@ void Connection::parseIncomingPackets()
 		{
 			return disconnected();
 		}
-		auto payloadLength = parseUint32(mIncomingData.data() + start + 16);
+		auto payloadLength = ByteStream::parseUint32(mIncomingData.data() + start + 16);
 		if (mIncomingDataSize < payloadLength + Protocol::HeaderLength)
 		{
 			break;
 		}
 
 		// Find the corresponding callback that is waiting in the queue:
-		auto messageType = parseUint16(mIncomingData.data() + start + 14);
+		auto messageType = ByteStream::parseUint16(mIncomingData.data() + start + 14);
 		if (messageType == static_cast<uint16_t>(CommandType::Alarm_Req))
 		{
 			// Special handling for Alarm packets, they have no callback in mIncomingQueue
