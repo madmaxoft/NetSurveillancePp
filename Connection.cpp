@@ -7,6 +7,13 @@
 #include "SofiaHash.hpp"
 #include "Error.hpp"
 
+#define DEBUGLOG(fmtString, ...) \
+	if (mDebugFile != nullptr) \
+	{ \
+		*mDebugFile << fmt::format(FMT_STRING(fmtString), __VA_ARGS__); \
+	}
+
+
 
 
 
@@ -51,6 +58,16 @@ std::shared_ptr<Connection> Connection::create()
 
 
 
+void Connection::copySessionIDFrom(const Connection & aOtherConnection)
+{
+	assert(mSessionID.load() == 0);  // SessionID hasn't been assigned yet
+	mSessionID = aOtherConnection.mSessionID.load();
+}
+
+
+
+
+
 void Connection::connect(
 	const std::string & aHostName,
 	uint16_t aPort,
@@ -58,6 +75,17 @@ void Connection::connect(
 )
 {
 	Super::connect(aHostName, aPort, aOnFinish);
+}
+
+
+
+
+
+void Connection::close()
+{
+	Super::disconnect();
+	mOnAlarm = nullptr;
+	mOnCapturedStreamData = nullptr;
 }
 
 
@@ -208,7 +236,7 @@ void Connection::capturePicture(PictureCallback aOnFinish, int aChannel)
 		},
 	};
 	queueCommandRaw(CommandType::NetSnap_Req, CommandType::NetSnap_Resp, js.dump(),
-		[aOnFinish](const std::error_code & aError, const char * aData, size_t aSize)
+		[aOnFinish](const std::error_code & aError, const void * aData, size_t aSize)
 		{
 			if (aError)
 			{
@@ -218,7 +246,8 @@ void Connection::capturePicture(PictureCallback aOnFinish, int aChannel)
 			// Some firmwares return JSON error, others return raw binary data. Try to parse to see if there's an error:
 			if (aSize < 500)
 			{
-				auto j = nlohmann::json::parse(aData, aData + aSize, nullptr, false);
+				auto data = reinterpret_cast<const char *>(aData);
+				auto j = nlohmann::json::parse(data, data + aSize, nullptr, false);
 				if (!j.is_discarded())
 				{
 					auto itr = j.find("Ret");
@@ -234,6 +263,24 @@ void Connection::capturePicture(PictureCallback aOnFinish, int aChannel)
 			aOnFinish(aError, aData, aSize);
 		}
 	);
+}
+
+
+
+
+
+void Connection::startReceivingMonitorData(
+	JsonCallback aOnMonitorClaimed,
+	CapturedStreamCallback aOnData,
+	const nlohmann::json & aSpec,
+	CommandType aReqType,
+	CommandType aRespType
+)
+{
+	assert(mOnCapturedStreamData == nullptr);  // Already claimed a stream?
+	mOnCapturedStreamData = std::move(aOnData);
+
+	queueCommand(aReqType, aRespType, aSpec.dump(), aOnMonitorClaimed);
 }
 
 
@@ -375,7 +422,7 @@ void Connection::queueCommand(
 )
 {
 	return queueCommandRaw(aCommandType, aExpectedResponseType, aPayload,
-		[self = selfPtr(), aOnFinish](const std::error_code & aErr, const char * aData, size_t aSize)
+		[self = selfPtr(), aOnFinish](const std::error_code & aErr, const void * aData, size_t aSize)
 		{
 			if (aErr)
 			{
@@ -383,7 +430,8 @@ void Connection::queueCommand(
 			}
 
 			// Parse the JSON from the response:
-			auto j = nlohmann::json::parse(aData, aData + aSize, nullptr, false);
+			auto data = reinterpret_cast<const char *>(aData);
+			auto j = nlohmann::json::parse(data, data + aSize, nullptr, false);
 			if (j.is_discarded())
 			{
 				return self->disconnected();
@@ -497,17 +545,20 @@ void Connection::notifyAlarm(const char * aData, size_t aSize)
 
 void Connection::parseIncomingPackets()
 {
+	DEBUGLOG("Parsing incoming packets: mIncomingDataSize = {}", mIncomingDataSize);
 	size_t start = 0;
 	while (mIncomingDataSize - start >= 20)
 	{
 		// Check if an entire packet is in the queue:
 		if (mIncomingData[start] != Protocol::IDENTIFICATION)
 		{
+			DEBUGLOG("Not a NetSurveillance protocol (header == 0x{:x} instead of 0x{:x}", mIncomingData[start], Protocol::IDENTIFICATION);
 			return disconnected();
 		}
 		auto payloadLength = ByteStream::parseUint32(mIncomingData.data() + start + 16);
-		if (mIncomingDataSize < payloadLength + Protocol::HeaderLength)
+		if (mIncomingDataSize - start < payloadLength + Protocol::HeaderLength)
 		{
+			DEBUGLOG("Not a complete packet (need 0x{:x} bytes, got 0x{:x} in buffer", payloadLength + Protocol::HeaderLength, mIncomingDataSize - start);
 			break;
 		}
 
@@ -517,6 +568,16 @@ void Connection::parseIncomingPackets()
 		{
 			// Special handling for Alarm packets, they have no callback in mIncomingQueue
 			notifyAlarm(mIncomingData.data() + start + 20, payloadLength);
+		}
+		else if (
+			(messageType == static_cast<uint16_t>(CommandType::Monitor_Data)) ||
+			(messageType == static_cast<uint16_t>(CommandType::Play_Data))
+		)
+		{
+			if (mOnCapturedStreamData != nullptr)
+			{
+				mOnCapturedStreamData({}, mIncomingData.data() + start + 20, payloadLength);
+			}
 		}
 		else
 		{

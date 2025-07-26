@@ -40,7 +40,7 @@ public:
 
 	/** The generic callback used for raw incoming data.
 	If the error code specifies an error, the callback must NOT touch aData nor aSize (they may be invalid). */
-	using RawDataCallback = std::function<void(const std::error_code & aErr, const char * aData, size_t aSize)>;
+	using RawDataCallback = std::function<void(const std::error_code & aErr, const void * aData, size_t aSize)>;
 
 	/** The generic callback for incoming data, parsed into a JSON structure. */
 	using JsonCallback = std::function<void(const std::error_code &, const nlohmann::json &)>;
@@ -67,7 +67,12 @@ public:
 
 	/** The callback for capturing a picture.
 	The first param is the error code; if successful, the next two params contain the raw picture data. */
-	using PictureCallback = std::function<void(const std::error_code &, const char * aData, size_t aSize)>;
+	using PictureCallback = std::function<void(const std::error_code &, const void * aData, size_t aSize)>;
+
+	/** The callback for receiving a CapturedStream data (live video or remote playback).
+	The first param is the error code; if successful, the next two params contain the CapturedStream data.
+	Use the CapturedStreamParser class to parse the raw video frames from the data. */
+	using CapturedStreamCallback = std::function<void(const std::error_code &, const void * aData, size_t aSize)>;
 
 	enum class CommandType: uint16_t
 	{
@@ -210,6 +215,13 @@ public:
 	create() instead of a constructor. */
 	static std::shared_ptr<Connection> create();
 
+	/** Copies the SessionID from the specified connection.
+	SessionID can only be copied if the remote hasn't assigned a SessionID for us before (i.e. mSessionID == 0). */
+	void copySessionIDFrom(const Connection & aOtherConnection);
+
+	/** Returns the session ID formatted as a hex number, with "0x" prefix (as is often used in the protocol). */
+	std::string sessionIDHexStr() const;
+
 	/** Asynchronously connects to the specified host + port.
 	Returns immediately, calls the finish handler async afterwards from an ASIO worker thread. */
 	void connect(
@@ -217,6 +229,9 @@ public:
 		uint16_t aPort,
 		std::function<void(const std::error_code &)> aOnFinish
 	);
+
+	/** Closes the connection immediately. */
+	void close();
 
 	/** Asynchronously logs in using the specified credentials.
 	When successful, schedules sending a keepalive packet according to the device's requirements.
@@ -256,6 +271,39 @@ public:
 	/** Asynchronously captures a picture from the specified channel. */
 	void capturePicture(PictureCallback aOnFinish, int aChannel);
 
+	/** Asynchronously starts receiving data for the specified data stream.
+	Used for receiving live video in CapturedStream format.
+	First, the aOnMonitorClaimed callback is called, meaning that the Claim Monitor_Resp has been received
+	(the main connection is expected to send the Start operation within that callback).
+	Then the aOnData callback is called for each incoming data packet.
+	NOTE: This function is expected NOT to be called on the main recorder socket, but rather on a secondary data socket. */
+	void startReceivingMonitorData(
+	JsonCallback aOnMonitorClaimed,
+	CapturedStreamCallback aOnData,
+	const nlohmann::json & aSpec
+	, CommandType aReqType, CommandType aRespType);
+
+	/** Puts the specified command to the send queue to be sent async.
+	Once the reply for the command is received, calls the callback from an ASIO worker thread.
+	The received data is first parsed as JSON, then handed to the callback.
+	If parsing the data fails, the connection gets disconnected. */
+	void queueCommand(
+		CommandType aCommandType,
+		CommandType aExpectedResponseType,
+		const std::string & aPayload,
+		JsonCallback aOnFinish
+	);
+
+	/** Puts the specified command to the send queue to be sent async.
+	Once the reply for the command is received, calls the callback from an ASIO worker thread.
+	The received data is handed to the callback as-is, with no parsing whatsoever. */
+	void queueCommandRaw(
+		CommandType aCommandType,
+		CommandType aExpectedResponseType,
+		const std::string & aPayload,
+		RawDataCallback aOnFinish
+	);
+
 
 protected:
 
@@ -281,6 +329,9 @@ protected:
 	May be nullptr (-> don't call anything, default). */
 	AlarmCallback mOnAlarm;
 
+	/** The callback to call upon receiving CapturedStream data (Monitor_Data or Play_Data messages). */
+	CapturedStreamCallback mOnCapturedStreamData;
+
 
 	/** Protected constructor, we want the clients to use std::shared_ptr for owning this object.
 	Instead of a constructor, the clients should call create(). */
@@ -300,30 +351,6 @@ protected:
 	/** Queues a KeepAlive request and re-schedules the timer again.
 	Called by ASIO periodically (through mKeepAliveTimer). */
 	void onKeepAliveTimer(const std::error_code & aError);
-
-	/** Returns the session ID formatted as a hex number, with "0x" prefix (as is often used in the protocol). */
-	std::string sessionIDHexStr() const;
-
-	/** Puts the specified command to the send queue to be sent async.
-	Once the reply for the command is received, calls the callback from an ASIO worker thread.
-	The received data is handed to the callback as-is, with no parsing whatsoever. */
-	void queueCommandRaw(
-		CommandType aCommandType,
-		CommandType aExpectedResponseType,
-		const std::string & aPayload,
-		RawDataCallback aOnFinish
-	);
-
-	/** Puts the specified command to the send queue to be sent async.
-	Once the reply for the command is received, calls the callback from an ASIO worker thread.
-	The received data is first parsed as JSON, then handed to the callback.
-	If parsing the data fails, the connection gets disconnected. */
-	void queueCommand(
-		CommandType aCommandType,
-		CommandType aExpectedResponseType,
-		const std::string & aPayload,
-		JsonCallback aOnFinish
-	);
 
 	/** Serializes the specified command into the on-wire format. */
 	std::vector<char> serializeCommand(CommandType aCommandType, const std::string & aPayload);

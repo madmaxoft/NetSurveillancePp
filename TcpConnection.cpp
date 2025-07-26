@@ -1,5 +1,7 @@
 #include "TcpConnection.hpp"
+#include <fstream>
 #include "Root.hpp"
+#include "fmt/format.h"
 
 
 
@@ -45,7 +47,7 @@ void TcpConnection::connect(
 				aOnFinish(aError);
 				return;
 			}
-			asio::async_connect(self->mSocket, aResults, 
+			asio::async_connect(self->mSocket, aResults,
 				[self, aOnFinish](const std::error_code & aError, asio::ip::tcp::endpoint const & aEndpoint)
 				{
 					if (aError)
@@ -94,6 +96,15 @@ void TcpConnection::disconnect()
 
 
 
+void TcpConnection::debugToFile(const std::string & aFileName)
+{
+	mDebugFile = std::make_unique<std::ofstream>(aFileName);
+}
+
+
+
+
+
 void TcpConnection::queueRead()
 {
 	mSocket.async_read_some(
@@ -130,6 +141,11 @@ void TcpConnection::onRead(const std::error_code & aError, std::size_t aNumBytes
 	{
 		disconnected();
 		return;
+	}
+
+	if (mDebugFile != nullptr)
+	{
+		*mDebugFile << fmt::format(FMT_STRING("Received {} bytes of data\n"), aNumBytes) << std::flush;
 	}
 
 	// Process the incoming data:

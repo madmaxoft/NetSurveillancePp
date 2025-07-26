@@ -21,6 +21,18 @@ class Recorder:
 	public std::enable_shared_from_this<Recorder>
 {
 public:
+
+	/** Interface for receiving a CapturedStream.
+	The receiveLiveVideo() and receiveRemotePlayback() functions return descendants of this class to allow controlling the stream. */
+	class ICapturedStreamReceiver
+	{
+	public:
+		virtual void close() = 0;
+	};
+
+	using ICapturedStreamReceiverPtr = std::shared_ptr<ICapturedStreamReceiver>;
+
+
 	/** Creates a new instance, wrapped in a shared_ptr.
 	Wrapping in shared_ptr is required due to lifetime management. */
 	static std::shared_ptr<Recorder> create();
@@ -74,8 +86,29 @@ public:
 	/** Asynchronously captures a picture from the specified channel. */
 	void capturePicture(Connection::PictureCallback aOnFinish, int aChannel);
 
+	/** Asynchronously starts receiving live video for the specified channel.
+	Returns a control interface for the stream. */
+	ICapturedStreamReceiverPtr receiveLiveVideo(Connection::CapturedStreamCallback aOnData, int aChannel);
+
+	/** Asynchronously starts receiving raw video stream from the specified remote playback.
+	Returns a control interface for the stream. */
+	ICapturedStreamReceiverPtr receiveRemotePlayback(
+		Connection::CapturedStreamCallback aOnData,
+		time_t aStartTimeStamp,
+		time_t aEndTimeStamp,
+		const std::string & aRemoteFileName
+	);
+
+	/** Returns the text representation of the timestamp usable in the JSON protocol. */
+	static std::string formatTimeStamp(time_t aTimeStamp);
 
 private:
+
+	// The address and credentials:
+	std::string mHostName;
+	int mPort;
+	std::string mUserName;
+	std::string mPassword;
 
 	/** The main TCP connection to the device. */
 	std::shared_ptr<Connection> mMainConnection;

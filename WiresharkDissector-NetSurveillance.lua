@@ -2,6 +2,7 @@
 -- To use it in your Wireshark, copy it to your User Plugins folder:
 -- Menu Help -> About Wireshark -> Folders tab -> Personal Lua plugins
 -- On Windows, this is %appdata%\WireShark\plugins
+-- On Linux, it is typically $HOME/.local/lib/wireshark/plugins
 
 
 

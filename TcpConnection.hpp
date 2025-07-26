@@ -30,7 +30,7 @@ public:
 
 	TcpConnection();
 
-	/** Asynchronously connects to the specified host + port. 
+	/** Asynchronously connects to the specified host + port.
 	Returns immediately, calls the finish handler async afterwards from an ASIO worker thread. */
 	void connect(
 		const std::string & aHostName,
@@ -45,6 +45,9 @@ public:
 	/** Disconnects the socket.
 	Ignores any errors, returns immediately. */
 	void disconnect();
+
+	/** Starts saving debug information about data on the socket to the specified file. */
+	void debugToFile(const std::string & aFileName);
 
 
 protected:
@@ -81,6 +84,10 @@ protected:
 
 	/** Flag specifying whether the socket is connected. */
 	bool mIsConnected;
+
+	/** The file object where the incoming data info should be dumped for debugging purposes.
+	Only valid after debugToFile() is called. */
+	std::unique_ptr<std::ostream> mDebugFile;
 
 
 	/** Queues another read operation with ASIO. */
